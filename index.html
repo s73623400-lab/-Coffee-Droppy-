@@ -1,38 +1,9 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Corner Cup — Coffee Shop Simulator</title>
-<style>
-html,body{margin:0;height:100%;overflow:hidden;background:#111;font-family:Arial,Helvetica,sans-serif}
-#game{width:100vw;height:100vh;display:block}
-#crosshair{position:fixed;left:50%;top:50%;width:7px;height:7px;margin:-3px 0 0 -3px;border:1px solid rgba(255,255,255,.8);border-radius:50%;pointer-events:none;z-index:5}
-#hud{position:fixed;left:18px;top:18px;color:#fff;background:rgba(12,12,12,.72);padding:12px 15px;border-radius:10px;backdrop-filter:blur(8px);z-index:10;line-height:1.5}
-#hud b{font-size:18px}
-#hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.68);padding:10px 16px;border-radius:999px;z-index:10}
-#order{position:fixed;right:18px;top:18px;width:280px;color:#fff;background:rgba(12,12,12,.78);padding:16px;border-radius:12px;z-index:10;display:none}
-#order h3{margin:0 0 8px}
-button{width:100%;padding:10px;margin-top:8px;border:0;border-radius:8px;background:#d7a86e;color:#17120d;font-weight:bold;cursor:pointer}
-button:hover{filter:brightness(1.08)}
-#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.82));z-index:20;color:#fff;text-align:center}
-.panel{max-width:520px;padding:28px;border-radius:18px;background:rgba(25,25,25,.9);box-shadow:0 20px 80px #000}
-.panel h1{font-size:42px;margin:0 0 8px}
-.panel p{color:#ccc}
-.panel button{max-width:300px}
-</style>
-</head>
-<body>
-<canvas id="game"></canvas>
-<div id="crosshair"></div>
-<div id="hud"><b>Corner Cup</b><br>Cash: £<span id="cash">0.00</span><br>Customers served: <span id="served">0</span></div>
-<div id="order"></div>
-<div id="hint">WASD to move • Mouse to look • E to interact</div>
 <div id="start"><div class="panel">
 <h1>☕ Corner Cup</h1>
 <p>A realistic first-person coffee shop starter. Take orders, prepare drinks and serve customers.</p>
 <p><b>Click Start, then click the café to lock the mouse.</b></p>
-<button id="startBtn" onclick="window.startGame()">START SHIFT</button>
+<!-- Updated button to dispatch an absolute global document event -->
+<button id="startBtn" onclick="document.dispatchEvent(new Event('initiateGameLock'))">START SHIFT</button>
 </div></div>
 
 <script type="module">
@@ -102,7 +73,7 @@ box(17, 2.4, .18, 0, 4.8, -6.82, mat(0x8a5b35, .8));
 box(18, .15, 22, 0, 6.1, 0, mat(0xddd7cc, .9));
 
 box(10.8, 1.0, 1.35, 0, 1.05, -1.9, mat(0x704728, .72));
-box(10.9,.16, 1.45, 0, 1.62, -1.9, mat(0xd4c8b7, .4));
+box(10.9, .16, 1.45, 0, 1.62, -1.9, mat(0xd4c8b7, .4));
 box(10.8, .25, 1.25, 0, .55, -1.9, mat(0x52311f, .8));
 box(10.7, .25, 1.15, 0, 1.55, -5.15, mat(0xaaa096, .45));
 
@@ -207,16 +178,75 @@ function handleInteraction() {
   const intersects = raycaster.intersectObjects(targets);
 
   if (intersects.length > 0) {
-    const hitObj = intersects[0].object;
+    const hitObj = intersects.object;
 
     if (hitObj.name === "customer_hitbox") {
       if (orderStage === 0) {
         orderStage = 1;
         orderEl.innerHTML = `<h3>Order Processing</h3><p>Preparing: <b>${activeOrder.name}</b></p><p style="color:#a8d76e">→ Walk over and press E on the Espresso Machine</p>`;
       } else if (orderStage === 2) {
+        cash += activeOrder.price;
+        served += 1;
+        cashEl.textContent = money(cash);
+        servedEl.textContent = served;
+        
+        orderEl.innerHTML = `<h3>Thank you!</h3><p>Customer paid £${money(activeOrder.price)}</p>`;
+        orderStage = 3;
 
-      window.startGame = function() {
+        setTimeout(() => {
+          generateNewOrder();
+        }, 2500);
+      }
+    }
+
+    if (hitObj.name === "espresso_machine" && orderStage === 1) {
+      orderEl.innerHTML = `<h3>Brewing...</h3><p>Steam pressure active. Extraction in progress...</p>`;
+      orderStage = -1; 
+
+      setTimeout(() => {
+        orderStage = 2;
+        orderEl.innerHTML = `<h3>Drink Ready!</h3><p>Item: <b>${activeOrder.name}</b></p><p style="color:#e2c391">→ Walk back and press E on customer to Serve</p>`;
+      }, 3000);
+    }
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key.toLowerCase() === "e" && controls.isLocked) {
+    handleInteraction();
+  }
+});
+window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+// Catch the global HTML event to force lock the pointer cross-scope
+document.addEventListener('initiateGameLock', () => {
   if (controls) {
     controls.lock();
   }
-};
+});
+
+controls.addEventListener("lock", () => {
+  document.querySelector("#start").style.display = "none";
+  if (!activeOrder) generateNewOrder();
+});
+
+controls.addEventListener("unlock", () => {
+  document.querySelector("#start").style.display = "flex";
+});
+
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  
+  if (controls.isLocked) {
+    const delta = clock.getDelta();
+
+  orderEl.innerHTML = <h3>Order Processing</h3><p>Preparing: <b>${activeOrder.name}</b></p><p style="color:#a8d76e">→ Walk over and press E on the Espresso Machine</p>;} else if (orderStage === 2) {cash += activeOrder.price;served += 1;cashEl.textContent = money(cash);servedEl.textContent = served;orderEl.innerHTML = <h3>Thank you!</h3><p>Customer paid £${money(activeOrder.price)}</p>;orderStage = 3;setTimeout(() => {generateNewOrder();}, 2500);}}if (hitObj.name === "espresso_machine" && orderStage === 1) {orderEl.innerHTML = <h3>Brewing...</h3><p>Steam pressure active. Extraction in progress...</p>;orderStage = -1;setTimeout(() => {orderStage = 2;orderEl.innerHTML = <h3>Drink Ready!</h3><p>Item: <b>${activeOrder.name}</b></p><p style="color:#e2c391">→ Walk back and press E on customer to Serve</p>;}, 3000);}}}window.addEventListener("keydown", (e) => {keys[e.key.toLowerCase()] = true;if (e.key.toLowerCase() === "e" && controls.isLocked) {handleInteraction();}});window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);// Absolute fallback handler catching standard dispatch eventsdocument.addEventListener('initiateGameLock', () => {if (controls) {controls.lock();}});controls.addEventListener("lock", () => {document.querySelector("#start").style.display = "none";if (!activeOrder) generateNewOrder();});controls.addEventListener("unlock", () => {document.querySelector("#start").style.display = "flex";});window.addEventListener("resize", () => {camera.aspect = innerWidth / innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth, innerHeight);});function animate() {requestAnimationFrame(animate);if (controls.isLocked) {const delta = clock.getDelta();const speed = 4.5 * delta;if (keys["w"]) controls.moveForward(speed);if (keys["s"]) controls.moveForward(-speed);if (keys["a"]) controls.moveRight(-speed);if (keys["d"]) controls.moveRight(speed);camera.position.y = 1.7;if (camera.position.z < -6.0) camera.position.z = -6.0;if (camera.position.z > -2.6) camera.position.z = -2.6;if (camera.position.x < -4.5) camera.position.x = -4.5;if (camera.position.x > 4.5) camera.position.x = 4.5;}renderer.render(scene, camera);}animate();
+Save your file, open it up, and click the **START SHIFT** button. Let me know if you are able to take your first **Flat White** order from the customer at the counter!
+AI responses may include mistakes. Learn more
