@@ -214,3 +214,9 @@ function handleInteraction() {
         orderStage = 1;
         orderEl.innerHTML = `<h3>Order Processing</h3><p>Preparing: <b>${activeOrder.name}</b></p><p style="color:#a8d76e">→ Walk over and press E on the Espresso Machine</p>`;
       } else if (orderStage === 2) {
+
+      window.startGame = function() {
+  if (controls) {
+    controls.lock();
+  }
+};
