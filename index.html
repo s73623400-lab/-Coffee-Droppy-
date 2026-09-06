@@ -257,8 +257,32 @@ function updateMovement(dt){
  p.x=THREE.MathUtils.clamp(p.x,-8.2,8.2);p.z=THREE.MathUtils.clamp(p.z,-5.8,6.0);p.y=1.7;
 }
 
-document.querySelector("#startBtn").onclick=()=>{document.querySelector("#start").style.display="none";controls.lock();};
-controls.addEventListener("unlock",()=>{document.querySelector("#start").style.display="flex"});
+let shiftStarted = false;
+
+function startShift(){
+  shiftStarted = true;
+  document.querySelector("#start").style.display = "none";
+  hint("Shift started! Click the café to look around.");
+  showOrder();
+}
+
+document.querySelector("#startBtn").addEventListener("click", (e) => {
+  e.preventDefault();
+  startShift();
+});
+
+canvas.addEventListener("click", () => {
+  if(shiftStarted && !controls.isLocked){
+    controls.lock();
+  }
+});
+
+controls.addEventListener("unlock", () => {
+  if(shiftStarted){
+    document.querySelector("#start").style.display = "none";
+    hint("Click the café to resume looking around.");
+  }
+});
 window.addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 
 function animate(){
