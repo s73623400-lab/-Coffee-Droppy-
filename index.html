@@ -34,266 +34,183 @@ button:hover{filter:brightness(1.08)}
 <p><b>Click Start, then click the café to lock the mouse.</b></p>
 <button id="startBtn">START SHIFT</button>
 </div></div>
+
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js";
-import {PointerLockControls} from "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/PointerLockControls.js";
+import * as THREE from "https://jsdelivr.net";
+import { PointerLockControls } from "https://jsdelivr.net";
 
-const canvas=document.querySelector("#game");
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.05;
+const canvas = document.querySelector("#game");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 
-const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x8fa5b0);
-scene.fog=new THREE.Fog(0x8fa5b0,18,38);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fa5b0);
+scene.fog = new THREE.Fog(0x8fa5b0, 18, 38);
 
-const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.05,100);
-camera.position.set(0,1.7,7);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, .05, 100);
+camera.position.set(0, 1.7, 3); 
 
-const controls=new PointerLockControls(camera,document.body);
+const controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-const clock=new THREE.Clock();
-const keys={};
-let cash=0,served=0;
-let activeOrder=null;
-let orderStage=0;
-let customer=null;
+const clock = new THREE.Clock();
+const keys = {};
+let cash = 0, served = 0;
+let activeOrder = null;
+let orderStage = 0; 
+let customer = null;
 
-const cashEl=document.querySelector("#cash"), servedEl=document.querySelector("#served");
-function money(n){return n.toFixed(2)}
-function mat(color,rough=.65,metal=0){
-  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal});
+const cashEl = document.querySelector("#cash"), servedEl = document.querySelector("#served");
+const orderEl = document.querySelector("#order");
+
+function money(n) { return n.toFixed(2) }
+function mat(color, rough = .65, metal = 0) {
+  return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
 }
-function box(w,h,d,x,y,z,m){
-  const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
-  o.position.set(x,y,z); o.castShadow=true;o.receiveShadow=true;scene.add(o);return o;
+function box(w, h, d, x, y, z, m) {
+  const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+  o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; scene.add(o); return o;
 }
-function cyl(r,h,x,y,z,m,segments=32){
-  const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,segments),m);
-  o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o;
+function cyl(r, h, x, y, z, m, segments = 32) {
+  const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segments), m);
+  o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; scene.add(o); return o;
 }
-function textSprite(text,scale=1){
-  const c=document.createElement("canvas");c.width=512;c.height=128;
-  const ctx=c.getContext("2d");ctx.fillStyle="#161616";ctx.fillRect(0,0,c.width,c.height);
-  ctx.fillStyle="#f2eadc";ctx.font="bold 42px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,c.width/2,c.height/2);
-  const t=new THREE.CanvasTexture(c);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t}));
-  s.scale.set(3.4*scale,.85*scale,1);return s;
+function textSprite(text, scale = 1) {
+  const c = document.createElement("canvas"); c.width = 512; c.height = 128;
+  const ctx = c.getContext("2d"); ctx.fillStyle = "#161616"; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = "#f2eadc"; ctx.font = "bold 42px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, c.width / 2, c.height / 2);
+  const t = new THREE.CanvasTexture(c); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t }));
+  s.scale.set(3.4 * scale, .85 * scale, 1); return s;
 }
 
-// Lighting
-scene.add(new THREE.HemisphereLight(0xfff4df,0x53616b,2.0));
-const sun=new THREE.DirectionalLight(0xffe7c4,3.2);
-sun.position.set(-6,10,5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.left=-15;sun.shadow.camera.right=15;sun.shadow.camera.top=12;sun.shadow.camera.bottom=-10;
+scene.add(new THREE.HemisphereLight(0xfff4df, 0x53616b, 2.0));
+const sun = new THREE.DirectionalLight(0xffe7c4, 3.2);
+sun.position.set(-6, 10, 5); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -15; sun.shadow.camera.right = 15; sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -10;
 scene.add(sun);
 
-// Floor + walls
-box(18,.18,22,0,-.1,0,mat(0x77736d,.9));
-box(18,6,.25,0,3,-7,mat(0xe7e1d7,.8));
-box(.25,6,22,-9,3,0,mat(0xd8d1c5,.8));
-box(.25,6,22,9,3,0,mat(0xd8d1c5,.8));
+box(18, .18, 22, 0, -.1, 0, mat(0x77736d, .9));
+box(18, 6, .25, 0, 3, -7, mat(0xe7e1d7, .8));
+box(.25, 6, 22, -9, 3, 0, mat(0xd8d1c5, .8));
+box(.25, 6, 22, 9, 3, 0, mat(0xd8d1c5, .8));
+box(17, 2.4, .18, 0, 4.8, -6.82, mat(0x8a5b35, .8));
+box(18, .15, 22, 0, 6.1, 0, mat(0xddd7cc, .9));
 
-// Wood accent wall
-box(17,2.4,.18,0,4.8,-6.82,mat(0x8a5b35,.8));
+box(10.8, 1.0, 1.35, 0, 1.05, -1.9, mat(0x704728, .72));
+box(10.9,.16, 1.45, 0, 1.62, -1.9, mat(0xd4c8b7, .4));
+box(10.8, .25, 1.25, 0, .55, -1.9, mat(0x52311f, .8));
+box(10.7, .25, 1.15, 0, 1.55, -5.15, mat(0xaaa096, .45));
 
-// Ceiling
-box(18,.15,22,0,6.1,0,mat(0xddd7cc,.9));
-
-// Counter
-box(10.8,1.0,1.35,0,1.05,-1.9,mat(0x704728,.72));
-box(10.9,.16,1.45,0,1.62,-1.9,mat(0xd4c8b7,.4));
-box(10.8,.25,1.25,0,.55,-1.9,mat(0x52311f,.8));
-
-// Back counter/worktop
-box(10.7,.25,1.15,0,1.55,-5.15,mat(0xaaa096,.45));
-
-// Menu boards
-for(let i=0;i<3;i++){
- const b=box(3.25,1.65,.12,-3.5+i*3.5,4.75,-6.63,mat(0x171717,.9));
- const s=textSprite(i===0?"COFFEE":i===1?"TEA & MORE":"EXTRAS",.55);
- s.position.set(-3.5+i*3.5,4.78,-6.55);scene.add(s);
+for (let i = 0; i < 3; i++) {
+  const b = box(3.25, 1.65, .12, -3.5 + i * 3.5, 4.75, -6.63, mat(0x171717, .9));
+  const s = textSprite(i === 0 ? "COFFEE" : i === 1 ? "TEA & MORE" : "EXTRAS", .55);
+  s.position.set(-3.5 + i * 3.5, 4.78, -6.55); scene.add(s);
 }
 
-// Shelves + coffee bags
-for(let y of [3.0,3.75]){
- box(8.5,.12,.5,0,y,-6.25,mat(0x704728,.75));
- for(let i=-4;i<=4;i++){
-   const bag=box(.35,.65,.25,i*.9,y+.35,-6.05,mat(i%2?0x4b3020:0x2f2520,.8));
- }
-}
-
-// Espresso machine, grinders, brewer
-const steel=mat(0xb8bdbe,.25,.75), dark=mat(0x222426,.3,.5);
-box(2.8,1.25,.7,-3.3,2.25,-5.05,steel);
-box(2.4,.25,.75,-3.3,2.92,-5.05,dark);
-for(let x of [-4.1,-3.3,-2.5]) cyl(.15,.45,x,1.98,-5.05,steel);
-for(let x of [-1.5,-.8]){cyl(.38,1.1,x,2.15,-5.0,dark);cyl(.3,.15,x,2.72,-5.0,mat(0x6f4b2d,.7));}
-box(1.0,1.7,.75,.2,2.25,-5.05,steel);
-box(.9,.9,.7,1.8,2.0,-5.05,dark);
-box(1.0,1.2,.75,3.2,2.15,-5.05,steel);
-box(1.0,.9,.75,4.55,2.0,-5.05,dark);
-
-// Under-counter fridges
-for(let x of [-3.5,-1.7,.1,1.9,3.7]){
- box(1.45,.95,.9,x,1.0,-4.75,mat(0x858b8e,.35,.55));
- box(1.05,.58,.03,x,1.0,-4.28,mat(0x9aa0a2,.25,.7));
-}
-
-// Display fridge
-box(2.1,1.8,.8,6.5,2.25,-4.8,mat(0x222426,.25,.5));
-box(1.75,1.45,.04,6.5,2.25,-4.37,new THREE.MeshStandardMaterial({color:0x9fd5e8,transparent:true,opacity:.25,roughness:.1,metalness:.1}));
-for(let i=0;i<3;i++) box(1.4,.07,.5,6.5,1.65+i*.45,-4.7,mat(0xb9a78f,.65));
-
-// Pastry case
-box(2.3,1.1,1.15,5.0,1.95,-2.0,mat(0x6b4228,.7));
-const glass=new THREE.MeshStandardMaterial({color:0xcfefff,transparent:true,opacity:.25,roughness:.05,metalness:.05});
-box(2.1,1.0,.04,5.0,2.35,-1.42,glass);
-for(let i=-1;i<=1;i++) cyl(.18,.08,4.45+i*.55,2.05,-1.85,mat(0xc18b50,.8),24);
-
-// Tables + chairs
-function table(x,z){
- cyl(.65,.1,x,1.05,z,mat(0x805431,.7));
- cyl(.09,.95,x,.55,z,mat(0x333333,.5,.7));
- for(let dx of [-.9,.9]) for(let dz of [-.7,.7]) box(.7,.75,.12,x+dx,.4,z+dz,dark);
-}
-table(-6,2); table(6,2);
-
-// Windows / door
-const windowMat=new THREE.MeshStandardMaterial({color:0x87b9c9,roughness:.08,metalness:.05});
-for(let x of [-5,-2,1,4]){
- box(2.4,3.1,.08,x,3.3,6.75,windowMat);
- box(2.5,.08,.1,x,3.3,6.68,mat(0x222222,.5,.7));
-}
-box(1.8,3.4,.12,7.0,2.0,6.68,windowMat);
-box(1.95,.1,.1,7.0,3.7,6.62,dark);
-
-// Ceiling string lights
-for(let x=-7;x<=7;x+=2){
- cyl(.045,.045,x,5.7,4.5,mat(0x222222,.5,.4),12);
- const l=new THREE.PointLight(0xffd38a,1.0,5);l.position.set(x,5.65,4.5);scene.add(l);
- const bulb=cyl(.08,.12,x,5.55,4.5,mat(0xffd77d,.2,0),20);
-}
-
-// Sign
-const sign=textSprite("GOOD COFFEE  •  GOOD MOOD",.75);sign.position.set(0,4.15,-6.48);scene.add(sign);
-
-// Simple customer
-function makeCustomer(){
- const g=new THREE.Group();
- const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.9,8,16),mat(0x3c526b,.85));body.position.y=1.0;body.castShadow=true;g.add(body);
- const head=cyl(.25,.42,0,1.75,0,mat(0xb98462,.85),24);g.add(head);
- g.position.set(0,0,4.2);scene.add(g);return g;
-}
-customer=makeCustomer();
-
-// Interaction helpers
-function distanceTo(o){return camera.position.distanceTo(o.position)}
-const interactables=[];
-function addInteractable(obj,name,action){obj.userData={name,action};interactables.push(obj);}
-addInteractable(scene.children.find(o=>o.position.x===-3.3 && o.position.y===2.25),"Espresso Machine",()=>prepare());
-addInteractable(scene.children.find(o=>o.position.x===0 && o.position.y===2.25),"Hot Water",()=>prepare());
-addInteractable(scene.children.find(o=>o.position.x===1.8 && o.position.y===2.0),"Blender",()=>prepare());
-
-function prepare(){
- if(!activeOrder){showOrder();return}
- orderStage++;
- if(orderStage===1){hint("Drink base prepared. Add milk/syrup if required.");}
- else {hint("Drink ready — go to the customer and press E.");}
-}
-function hint(t){document.querySelector("#hint").textContent=t;setTimeout(()=>document.querySelector("#hint").textContent="WASD to move • Mouse to look • E to interact",2500)}
-function showOrder(){
- const drinks=[
-  ["Latte",3.20],["Cappuccino",3.20],["Americano",2.20],["Mocha",3.00],["Iced Coffee",3.00]
- ];
- const d=drinks[Math.floor(Math.random()*drinks.length)];
- activeOrder={name:d[0],price:d[1]};orderStage=0;
- const el=document.querySelector("#order");el.style.display="block";
- el.innerHTML=`<h3>Customer order</h3><div style="font-size:24px;margin:10px 0">${d[0]}</div><div>£${money(d[1])}</div><button onclick="window.closeOrder()">Accept order</button>`;
-}
-window.closeOrder=()=>{document.querySelector("#order").innerHTML="<h3>Order accepted</h3><p>Prepare the drink using the machines.</p>"};
-function serve(){
- if(!activeOrder || orderStage<2){hint("The drink isn't ready yet.");return}
- cash+=activeOrder.price;served++;
- cashEl.textContent=money(cash);servedEl.textContent=served;
- activeOrder=null;orderStage=0;
- document.querySelector("#order").style.display="none";
- hint("Order served! The customer is happy.");
- customer.position.set(0,0,4.2);
- setTimeout(showOrder,2500);
-}
-
-// Movement
-const velocity=new THREE.Vector3();
-document.addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="KeyE") interact();});
-document.addEventListener("keyup",e=>keys[e.code]=false);
-function interact(){
- if(customer && camera.position.distanceTo(customer.position)<3){serve();return}
- if(!activeOrder && camera.position.distanceTo(new THREE.Vector3(0,1.7,4.2))<3){showOrder();return}
- let best=null,bd=2.4;
- for(const o of interactables){
-   const d=camera.position.distanceTo(o.position);
-   if(d<bd){bd=d;best=o}
- }
- if(best) best.userData.action();
-}
-function updateMovement(dt){
- if(!controls.isLocked)return;
- const dir=new THREE.Vector3();
- if(keys.KeyW)dir.z-=1;if(keys.KeyS)dir.z+=1;if(keys.KeyA)dir.x-=1;if(keys.KeyD)dir.x+=1;
- dir.normalize();
- const speed=3.3;
- const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();
- const right=new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
- velocity.set(0,0,0);
- velocity.addScaledVector(forward,dir.z*speed*dt);
- velocity.addScaledVector(right,dir.x*speed*dt);
- controls.getObject().position.add(velocity);
- const p=controls.getObject().position;
- p.x=THREE.MathUtils.clamp(p.x,-8.2,8.2);p.z=THREE.MathUtils.clamp(p.z,-5.8,6.0);p.y=1.7;
-}
-
-let shiftStarted = false;
-
-function startShift(){
-  shiftStarted = true;
-  document.querySelector("#start").style.display = "none";
-  hint("Shift started! Click the café to look around.");
-  showOrder();
-}
-
-document.querySelector("#startBtn").addEventListener("click", (e) => {
-  e.preventDefault();
-  startShift();
-});
-
-canvas.addEventListener("click", () => {
-  if(shiftStarted && !controls.isLocked){
-    controls.lock();
+for (let y of [3.0, 3.75]) {
+  box(8.5, .12, .5, 0, y, -6.25, mat(0x704728, .75));
+  for (let i = -4; i <= 4; i++) {
+    const bag = box(.35, .65, .25, i * .9, y + .35, -6.05, mat(i % 2 ? 0x4b3020 : 0x2f2520, .8));
   }
-});
-
-controls.addEventListener("unlock", () => {
-  if(shiftStarted){
-    document.querySelector("#start").style.display = "none";
-    hint("Click the café to resume looking around.");
-  }
-});
-window.addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-
-function animate(){
- requestAnimationFrame(animate);
- const dt=Math.min(clock.getDelta(),.05);
- updateMovement(dt);
- // customer gently waits
- if(customer && customer.position.z>0){customer.position.x=Math.sin(performance.now()/700)*.15}
- renderer.render(scene,camera);
 }
-animate();
-</script>
-</body>
-</html>
+
+const targets = [];
+const steel = mat(0xb8bdbe, .25, .75), dark = mat(0x222426, .3, .5);
+const espressoMachine = box(2.8, 1.25, .7, -3.3, 2.25, -5.05, steel);
+espressoMachine.name = "espresso_machine";
+targets.push(espressoMachine);
+
+box(2.4, .25, .75, -3.3, 2.92, dark);
+for (let x of [-4.1, -3.3, -2.5]) cyl(.15, .45, x, 1.98, -5.05, steel);
+for (let x of [-1.5, -.8]) { cyl(.38, 1.1, x, 2.15, -5.0, dark); cyl(.3, .15, x, 2.72, -5.0, mat(0x6f4b2d, .7)); }
+box(1.0, 1.7, .75, .2, 2.25, -5.05, steel);
+box(.9, .9, .7, 1.8, 2.0, -5.05, dark);
+box(1.0, 1.2, .75, 3.2, 2.15, -5.05, steel);
+box(1.0, .9, .75, 4.55, 2.0, -5.05, dark);
+
+for (let x of [-3.5, -1.7, .1, 1.9, 3.7]) {
+  box(1.45, .95, .9, x, 1.0, -4.75, mat(0x858b8e, .35, .55));
+  box(1.05, .58, .03, x, 1.0, -4.28, mat(0x9aa0a2, .25, .7));
+}
+
+box(2.1, 1.8, .8, 6.5, 2.25, -4.8, mat(0x222426, .25, .5));
+box(1.75, 1.45, .04, 6.5, 2.25, -4.37, new THREE.MeshStandardMaterial({ color: 0x9fd5e8, transparent: true, opacity: .25, roughness: .1, metalness: .1 }));
+for (let i = 0; i < 3; i++) box(1.4, .07, .5, 6.5, 1.65 + i * .45, -4.7, mat(0xb9a78f, .65));
+
+box(2.3, 1.1, 1.15, 5.0, 1.95, -2.0, mat(0x6b4228, .7));
+const glass = new THREE.MeshStandardMaterial({ color: 0xcfefff, transparent: true, opacity: .25, roughness: .05, metalness: .05 });
+box(2.1, 1.0, .04, 5.0, 2.35, -1.42, glass);
+for (let i = -1; i <= 1; i++) cyl(.18, .08, 4.45 + i * .55, 2.05, -1.85, mat(0xc18b50, .8), 24);
+
+function table(x, z) {
+  cyl(.65, .1, x, 1.05, z, mat(0x805431, .7));
+  cyl(.09, .95, x, .55, z, mat(0x333333, .5, .7));
+  for (let dx of [-.9, .9]) for (let dz of [-.7, .7]) box(.7, .75, .12, x + dx, .4, z + dz, dark);
+}
+table(-6, 2); table(6, 2);
+
+const windowMat = new THREE.MeshStandardMaterial({ color: 0x87b9c9, roughness: .08, metalness: .05 });
+for (let x of [-5, -2, 1, 4]) {
+  box(2.4, 3.1, .08, x, 3.3, 6.75, windowMat);
+  box(2.5, .08, .1, x, 3.3, 6.68, mat(0x222222, .5, .7));
+}
+box(1.8, 3.4, .12, 7.0, 2.0, 6.68, windowMat);
+box(1.95, .1, .1, 7.0, 3.7, 6.62, dark);
+
+for (let x = -7; x <= 7; x += 2) {
+  cyl(.045, .045, x, 5.7, 4.5, mat(0x222222, .5, .4), 12);
+  const l = new THREE.PointLight(0xffd38a, 1.0, 5); l.position.set(x, 5.65, 4.5); scene.add(l);
+  const bulb = cyl(.08, .12, x, 5.55, 4.5, mat(0xffd77d, .2, 0), 20);
+}
+
+const sign = textSprite("GOOD COFFEE  •  GOOD MOOD", .75); sign.position.set(0, 4.15, -6.48); scene.add(sign);
+
+function makeCustomer() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.32, .9, 8, 16), mat(0x3c526b, .85)); body.position.y = 1.0; body.castShadow = true; g.add(body);
+  const head = cyl(.25, .42, 0, 1.75, 0, mat(0xb98462, .85), 24); g.add(head);
+  g.position.set(0, 0, -0.6); 
+  g.name = "customer";
+  scene.add(g);
+  
+  const hitBox = box(0.8, 2.0, 0.8, 0, 1.0, -0.6, new THREE.MeshBasicMaterial({visible: false}));
+  hitBox.name = "customer_hitbox";
+  targets.push(hitBox);
+  
+  return g;
+}
+customer = makeCustomer();
+
+const raycaster = new THREE.Raycaster();
+const centerMouse = new THREE.Vector2(0, 0);
+
+const drinksMenu = [
+  { name: "Flat White", price: 3.50 },
+  { name: "Long Black", price: 3.00 },
+  { name: "Iced Latte", price: 3.90 }
+];
+
+function generateNewOrder() {
+  activeOrder = drinksMenu[Math.floor(Math.random() * drinksMenu.length)];
+  orderStage = 0;
+  orderEl.innerHTML = `<h3>New Customer Order</h3><p>Could I get a <b>${activeOrder.name}</b> please?</p><p style="color:#d7a86e">→ Press E on customer to Accept Order</p>`;
+  orderEl.style.display = "block";
+}
+
+function handleInteraction() {
+  raycaster.setFromCamera(centerMouse, camera);
+  const intersects = raycaster.intersectObjects(targets);
+
+  if (intersects.length > 0) {
+    const hitObj = intersects[0].object;
+
+    if (hitObj.name === "customer_hitbox") {
+      if (orderStage === 0) {
+        orderStage = 1;
+        orderEl.innerHTML = `<h3>Order Processing</h3><p>Preparing: <b>${activeOrder.name}</b></p><p style="color:#a8d76e">→ Walk over and press E on the Espresso Machine</p>`;
+      } else if (orderStage === 2) {
